@@ -1,45 +1,18 @@
-import os
-import numpy as np 
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
-import pandas as pd
-from torch.utils.data import Dataset, DataLoader
-import torchvision
-from torchvision import transforms
-
-root_path = f"{os.getcwd()}/cnn"
-
-# Data : https://www.kaggle.com/datasets/gpiosenka/cards-image-datasetclassification
-card_dataset =  torchvision.datasets.ImageFolder(
-    root=f"{root_path}/data/train",
-    transform=transforms.Compose([
-    transforms.Resize((100, 100)),
-    transforms.ToTensor(),
-    transforms.Normalize( (0.5, 0.5, 0.5), (0.5, 0.5, 0.5) )
-    ])
-)
-
-def collater(batch):
-    images, labels = [], []
-    for image, label in batch:
-        images.append(image)
-        labels.append(label)
-    images = torch.tensor(np.array(images), dtype=torch.float32)
-    labels = torch.tensor(np.array(labels).reshape(-1, 1), dtype=torch.float32)
-    return images, labels
-
-dl = DataLoader(card_dataset, batch_size=8, shuffle=True, collate_fn=collater)
+from card_data import dl
 
 class CardModel(nn.Module):
     def __init__(self):
         super(CardModel, self).__init__()
-        self.conv1 = nn.Conv2d(3, 32, kernel_size=3, padding=1)
-        self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
+        self.conv1 = nn.Conv2d(3, 32, kernel_size=3, stride=1 ,padding=1)
+        self.pool = nn.MaxPool2d(kernel_size=2)
         self.dropout = nn.Dropout(0.2)
-        self.fc1 = nn.Linear(32 * 25 * 25, 64)  
+        self.fc1 = nn.Linear(32 * 32 * 32, 64)  
         self.fc2 = nn.Linear(64, 53)  
+        self.flat = nn.Flatten() 
 
     def forward(self, x, y=None, train=True):
         if train:
@@ -54,25 +27,32 @@ class CardModel(nn.Module):
         loss = self.loss(y, y_hat)
         return loss 
     
-    def predict(self, x):
-        a = self.conv1(x)
-        z = F.relu(a)
-        a = self.pool(z)
+    def predict(self, x): # x.shape (3, 64, 64)
+        a = self.conv1(x) 
+        a = F.relu(a) # a.shape (32, 64, 64)
+        a = self.pool(a) # a.shape (32, 32, 32)
+        a = self.flat(a)
         a = self.dropout(a)
-        a = torch.flatten(a, 1) 
-        a = self.fc1(a)
-        z = F.relu(a)
-        a = self.fc2(z)
-        out = F.softmax(a, 1)
+        a = self.fc1 (a) 
+        a = F.relu(a)
+        a = self.fc2(a)
+        out = F.softmax(a)
         return out 
     
     def loss(self, y, y_hat):
         loss = F.cross_entropy(y_hat, y)
         return loss 
 
-m = CardModel()
+if __name__ == "__main__":
+    m = CardModel()
 
-optim = optim.Adam(m.parameters(), lr=0.1)
-for e in range(5):
-    for i, (image, label) in enumerate(dl):
-        breakpoint()
+    optim = optim.Adam(m.parameters(), lr=0.1)
+    for e in range(5):
+        for i, (image, label) in enumerate(dl):
+            loss = m(image, label)
+            optim.zero_grad()
+            loss.backward()
+            optim.step()
+            print(f"\r{i} / {len(dl)} | loss = {loss:.3f}", end="")
+            if i % 2000 == 0:
+                print()
