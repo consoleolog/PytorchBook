@@ -33,3 +33,9 @@ def collater(batch):
 
 
 dl = DataLoader(gpa_dataset, batch_size=8, shuffle=True, collate_fn=collater)
+
+
+if __name__ == "__main__":
+    for e in range(5):
+        for i, (score, admit) in enumerate(dl):
+            breakpoint()

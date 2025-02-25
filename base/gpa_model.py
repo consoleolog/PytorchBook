@@ -39,15 +39,16 @@ class GPAModel(nn.Module):
         loss = F.binary_cross_entropy(y_hat, y)
         return loss 
         
-m = GPAModel(3)
+if __name__ == "__main__":
+    m = GPAModel(3)
 
-optim = optim.Adam(m.parameters(), lr=0.1)
-for e in range(5):
-    for i, (scores, admit) in enumerate(dl):
-        loss = m(scores, admit)
-        optim.zero_grad()
-        loss.backward()
-        optim.step()
-        print(f"\r{i} / {len(dl)} | loss = {loss:.3f}", end="")
-        if i % 2000 == 0:
-            print()     
+    optim = optim.Adam(m.parameters(), lr=0.1)
+    for e in range(5):
+        for i, (score, admit) in enumerate(dl):
+            loss = m(score, admit)
+            optim.zero_grad()
+            loss.backward()
+            optim.step()
+            print(f"\r{i} / {len(dl)} | loss = {loss:.3f}", end="")
+            if i % 2000 == 0:
+                print()     
